@@ -28,13 +28,15 @@ class Board:
         self.card_back_image = pygame.transform.scale(self.card_back_image, (50, 70))
 
         screen_border = 30
+        card_border = 75
         screen_center = screen.get_rect().center
         screen_width = screen.get_width()
         screen_height = screen.get_height()
         self.player_positions = [(screen_border, screen_center[1]), (screen_center[0], screen_border),
-                                 (screen_center[0], screen_height - screen_border),
-                                 (screen_width - screen_border, screen_center[1])]
-        self.playable_card_offsets = [(50, -100), (50, -50), (50, 0), (50, 50), (50, 100)]
+                                 (screen_width - screen_border, screen_center[1]),
+                                 (screen_center[0], screen_height - screen_border)]
+        self.playable_card_offsets = [(card_border, -150), (card_border, -75), (card_border, 0), (card_border, 75),
+                                      (card_border, 150)]
         self.playable_card_positions = []
 
     def initialise_players(self):
@@ -55,8 +57,9 @@ class Board:
             self.screen.blit(self.card_back_image, card_rect)
 
     def initialise_card_positions(self):
-        for player_index, player_name in enumerate(self.players):
-            for i in range(len(self.playable_card_offsets)):
+
+        for i in range(len(self.playable_card_offsets)):
+            for player_index, player_name in enumerate(self.players):
                 starting_position = self.player_positions[player_index]
                 if player_index == 0:
                     target_position = (starting_position[0] + self.playable_card_offsets[i][0],
@@ -65,18 +68,18 @@ class Board:
                     target_position = (starting_position[0] + self.playable_card_offsets[i][1],
                                        starting_position[1] + self.playable_card_offsets[i][0])
                 elif player_index == 2:
-                    target_position = (starting_position[0] - self.playable_card_offsets[i][1],
-                                       starting_position[1] + self.playable_card_offsets[i][0])
-                else:
                     target_position = (starting_position[0] - self.playable_card_offsets[i][0],
                                        starting_position[1] - self.playable_card_offsets[i][1])
+                else:
+                    target_position = (starting_position[0] - self.playable_card_offsets[i][1],
+                                       starting_position[1] - self.playable_card_offsets[i][0])
 
                 self.playable_card_positions.append(target_position)
 
     def initialise_queens(self):
         screen_center = self.screen.get_rect().center
 
-        queen_vert_gap = int(float(self.screen.get_height()) / 7)
+        queen_vert_gap = int(float(self.screen.get_height()) / 9)
         self.queen_cards = []
         for queen_row in range(4):
             for queen_col in range(2):
@@ -95,14 +98,39 @@ class Board:
         for queen in self.queen_cards:
             target_border = pygame.Rect(queen.x - 5, queen.y - 5,
                                         queen.width + 10, queen.height + 10)
-            pygame.draw.rect(self.screen, self.highlight_colour, target_border)
-            self.screen.blit(self.queen_back, queen)
+            pygame.draw.rect(self.screen, self.bg_colour, target_border)
+            self.screen.blit(self.queen_back_image, queen)
+
+
+def move_card_to_destination(screen, board, source_picture, source_coords, target_coords):
+    # create a new image at the source coords
+    picture = pygame.image.load(source_picture)
+    picture = pygame.transform.scale(picture, (50, 70))
+    pic_rect = picture.get_rect()
+    pic_rect.center = source_coords
+
+    # move it to the target
+    num_moves = 100
+    x_distance = source_coords[0] - target_coords[0]
+    y_distance = source_coords[1] - target_coords[1]
+    x_increment = float(x_distance) / float(num_moves)
+    y_increment = float(y_distance) / float(num_moves)
+
+    for i in range(num_moves + 1):
+        bg_colour = (100, 100, 100)
+        screen.fill(bg_colour)
+        position = pic_rect.center
+        new_position = (round(position[0] - (x_increment * i)), round(position[1] - (y_increment * i)))
+        board.initialise_players()
+        screen.blit(picture, new_position)
+        pygame.display.update()
+        pygame.time.delay(1)
 
 
 def enter_players():
     pygame.init()
     pygame.display.set_caption("Sleeping Queens")
-    screen = pygame.display.set_mode((580, 660))
+    screen = pygame.display.set_mode((800, 800))
     player_name = ""
     max_players = 4
     current_player = 1
@@ -155,33 +183,6 @@ def enter_players():
         start_game(screen, players)
 
 
-
-
-def move_card_to_destination(screen, board, source_picture, source_coords, target_coords):
-    # create a new image at the source coords
-    picture = pygame.image.load(source_picture)
-    picture = pygame.transform.scale(picture, (50, 70))
-    pic_rect = picture.get_rect()
-    pic_rect.center = source_coords
-
-    # move it to the target
-    num_moves = 100
-    x_distance = source_coords[0] - target_coords[0]
-    y_distance = source_coords[1] - target_coords[1]
-
-    for i in range(num_moves):
-        bg_colour = (100, 100, 100)
-        screen.fill(bg_colour)
-        board.initialise_players()
-        position = pic_rect.center
-        x_increment = int(float(x_distance) / float(num_moves))
-        y_increment = int(float(y_distance) / float(num_moves))
-        new_position = (position[0] - (x_increment * i), position[1] - (y_increment * i))
-        screen.blit(picture, new_position)
-        pygame.display.update()
-        pygame.time.delay(1)
-
-
 def start_game(screen, player_list):
     board = Board(screen, player_list)
     board.initialise_players()
@@ -189,9 +190,9 @@ def start_game(screen, player_list):
     screen_center = screen.get_rect().center
 
     for target_position in board.playable_card_positions:
-        print(target_position)
-        board.playable_cards.append(target_position)
         move_card_to_destination(screen, board, board.card_back, screen_center, target_position)
+        board.playable_cards.append(target_position)
+        board.initialise_players()
 
     board.initialise_queens()
 
