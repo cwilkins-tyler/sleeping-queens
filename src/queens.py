@@ -12,9 +12,10 @@ class Player:
 class Board:
     def __init__(self, screen, players):
         self.screen = screen
-        self.players = players
+        self.player_names = players
         self.queens = ['heart', 'rose', 'peacock', 'ice-cream', 'dog', 'cat', 'strawberry', 'sunflower', 'moon',
                        'rainbow', 'pancake', 'cake', 'ladybird', 'starfish', 'book', 'butterfly']
+        self.players = []
         self.queen_cards = []
         self.playable_cards = []
         self.bg_colour = (100, 100, 100)
@@ -43,7 +44,9 @@ class Board:
         self.screen.fill(self.bg_colour)
         font = pygame.font.Font(None, 50)
 
-        for player_index, player_name in enumerate(self.players):
+        for player_index, player_name in enumerate(self.player_names):
+            player = Player(player_name)
+            self.players.append(player)
             label = font.render(player_name, True, (200, 200, 200))
             rect = label.get_rect()
             rect.center = self.player_positions[player_index]
@@ -57,9 +60,8 @@ class Board:
             self.screen.blit(self.card_back_image, card_rect)
 
     def initialise_card_positions(self):
-
         for i in range(len(self.playable_card_offsets)):
-            for player_index, player_name in enumerate(self.players):
+            for player_index, player_name in enumerate(self.player_names):
                 starting_position = self.player_positions[player_index]
                 if player_index == 0:
                     target_position = (starting_position[0] + self.playable_card_offsets[i][0],
