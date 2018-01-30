@@ -126,7 +126,6 @@ class Board:
                     target_position = (starting_position[0] - self.playable_card_offsets[i][1],
                                        starting_position[1] - self.playable_card_offsets[i][0])
 
-                print('Assigning card position {} to {}'.format(player_index, target_position))
                 self.playable_card_positions.append(target_position)
 
     def deal_initial_cards(self):
