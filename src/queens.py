@@ -1,4 +1,5 @@
 import os
+import re
 import pygame
 from random import shuffle
 from pygame.locals import QUIT, KEYDOWN, K_BACKSPACE, K_RETURN, MOUSEBUTTONUP
@@ -55,21 +56,20 @@ class Player:
 class Board:
     def __init__(self, screen, players):
         self.screen = screen
-        self.card_width = 50
-        self.card_height = 70
+        self.bg_colour = (100, 100, 100)
+        self.resource_dir = os.path.join('..', 'resources')
         self.player_names = players
-        self.queens = ['heart', 'rose', 'peacock', 'ice-cream', 'dog', 'cat', 'strawberry', 'sunflower', 'moon',
-                       'rainbow', 'pancake', 'cake', 'ladybird', 'starfish', 'book', 'butterfly']
+        self.queens = ['heart', 'rose', 'peacock', 'ice-cream', 'dog', 'cat', 'strawberry', 'sunflower',
+                       'rainbow', 'pancake', 'cake', 'ladybird', 'starfish', 'book', 'butterfly', 'moon']
         self.full_deck = ['1', '1', '1', '1', '2', '2', '2', '2', '3', '3', '3', '3', '4', '4', '4', '4',
                           '5', '5', '5', '5', '6', '6', '6', '6', '7', '7', '7', '7', '8', '8', '8', '8',
-                          '9', '9', '9', '9', '10', '10', '10', '10', 'king', 'potion', 'wand',
+                          '9', '9', '9', '9', '10', '10', '10', '10', 'king-fire', 'potion', 'wand',
                           'knight', 'dragon', 'jester']
         self.players = []
         self.player_turn = 0
         self.queen_cards = []
         self.playable_cards = []
-        self.bg_colour = (100, 100, 100)
-        self.resource_dir = os.path.join('..', 'resources')
+        self.current_selection = []
         self.card_back = os.path.join(self.resource_dir, 'card-back.jpg')
         self.queen_back = os.path.join(self.resource_dir, 'queen-back.jpg')
         self.queen_back_image = pygame.image.load(self.queen_back)
@@ -168,12 +168,11 @@ class Board:
             queen_name = self.queens[self.queen_cards.index(target_queen)]
             chosen_queen = os.path.join(self.resource_dir, 'queen-{}.jpg'.format(queen_name))
             queen_image = pygame.image.load(chosen_queen)
-            queen_image = pygame.transform.scale(queen_image, (50, 70))
+            queen_image = pygame.transform.scale(queen_image, (60, 80))
             target_queen.draw_card(self.screen, target_queen.center, queen_image, self.bg_colour)
             target_queen.select(self.screen)
         else:
             self.deselect_queens()
-            self.draw_center_card()
 
     def deselect_queens(self):
         for queen in self.queen_cards:
@@ -211,19 +210,23 @@ class Board:
                 target_card_file = os.path.join(self.resource_dir, 'card-1.jpg')
 
             target_card = pygame.image.load(target_card_file)
-            target_card = pygame.transform.scale(target_card, (self.card_width, self.card_height))
+            target_card = pygame.transform.scale(target_card, (card.width, card.height))
             card.draw_card(self.screen, card.center, target_card, self.bg_colour)
+            if card.selected:
+                card.select(self.screen)
 
     def hide_player_cards(self):
         current_player = self.players[self.player_turn]
         for card in current_player.cards:
             card.draw_card(self.screen, card.center, self.card_back_image, self.bg_colour)
+            card.selected = False
 
     def select_player_card(self):
         current_player = self.players[self.player_turn]
         for card in current_player.cards:
             if card.is_clicked():
                 card.select(self.screen)
+                self.current_selection.append(card)
                 return True
 
         return False
@@ -239,19 +242,44 @@ class Board:
         else:
             return False
 
-    def do_player_turn(self, event):
+    def valid_move(self):
+        if len(self.current_selection) == 1:
+            # any single card can be played
+            return True
+        else:
+            # multiple cards must all be numbers
+            all_numbers = True
+            for card in self.current_selection:
+                if not re.search('^\d+$', card.card_type):
+                    all_numbers = False
+
+            return all_numbers
+
+    def do_player_turn(self):
         self.center_stack = self.draw_center_card()
         self.show_player_cards()
-        if event.type == MOUSEBUTTONUP:
-            if self.select_player_card():
-                print('Player Card selected')
-            elif self.is_center_card_selected():
-                print('Ending turn: {}'.format(self.player_turn))
+        for event in pygame.event.get():
+            if event.type == QUIT:
+                print('Exiting')
                 self.hide_player_cards()
-                self.player_turn += 1
-                self.player_turn %= len(self.player_names)
-            else:
-                self.select_queen()
+                return 1
+            elif event.type == MOUSEBUTTONUP:
+                if self.select_player_card():
+                    print('Player Card selected')
+                elif self.is_center_card_selected():
+                    if self.valid_move():
+                        print('Moving cards')
+                    else:
+                        print('Not a valid move')
+
+                    print('Ending turn: {}'.format(self.player_turn))
+                    self.hide_player_cards()
+                    self.player_turn += 1
+                    self.player_turn %= len(self.player_names)
+                else:
+                    self.select_queen()
+
+        return 0
 
 
 def enter_players():
@@ -300,10 +328,11 @@ def enter_players():
             label_rect.center = (100, screen_center[1] + ((i - 1) * 50))
             screen.blit(label, label_rect)
 
-        rect = block.get_rect()
-        rect.center = (screen_center[0] + (rect.width / 2) - 20, ((current_player - 2) * 50) + screen_center[1])
-        screen.blit(block, rect)
-        pygame.display.flip()
+        if len(players) < max_players:
+            rect = block.get_rect()
+            rect.center = (screen_center[0] + (rect.width / 2) - 20, ((current_player - 2) * 50) + screen_center[1])
+            screen.blit(block, rect)
+            pygame.display.flip()
 
     print('Players selected: {}'.format(len(players)))
     if len(players) > 0:
@@ -322,8 +351,9 @@ def start_game(screen, player_list):
         for evt in pygame.event.get():
             if evt.type == QUIT:
                 return
-            else:
-                board.do_player_turn(evt)
+
+        if board.do_player_turn():
+            return
 
         pygame.display.flip()
 
