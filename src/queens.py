@@ -282,7 +282,7 @@ class Board:
     def perform_action(self):
         action_card = self.current_selection[0]
 
-        if action_card.card_type == 'king':
+        if action_card.card_type.startswith('king'):
             print('Playing king')
         elif action_card.card_type == 'jester':
             print('jester')
@@ -329,17 +329,18 @@ class Board:
                             self.perform_action()
                         print('Replacing cards')
                         self.replace_cards()
+                        
+                        print('Ending turn: {}'.format(self.player_turn))
+                        self.hide_player_cards()
+                        self.deselect_queens()
+                        self.current_selection = []
+                        self.player_turn += 1
+                        self.player_turn %= len(self.player_names)
                     else:
                         print('Not a valid move')
                         for card in self.current_selection:
                             print(card.card_type)
 
-                    print('Ending turn: {}'.format(self.player_turn))
-                    self.hide_player_cards()
-                    self.deselect_queens()
-                    self.current_selection = []
-                    self.player_turn += 1
-                    self.player_turn %= len(self.player_names)
                 else:
                     self.select_queen()
 
