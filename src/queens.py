@@ -63,7 +63,8 @@ class Board:
                        'rainbow', 'pancake', 'cake', 'ladybird', 'starfish', 'book', 'butterfly', 'moon']
         self.full_deck = ['1', '1', '1', '1', '2', '2', '2', '2', '3', '3', '3', '3', '4', '4', '4', '4',
                           '5', '5', '5', '5', '6', '6', '6', '6', '7', '7', '7', '7', '8', '8', '8', '8',
-                          '9', '9', '9', '9', '10', '10', '10', '10', 'king-fire', 'potion', 'wand',
+                          '9', '9', '9', '9', '10', '10', '10', '10', 'king-fire', 'king-fire', 'king-fire',
+                          'king-fire', 'king-fire', 'king-fire', 'king-fire', 'king-fire', 'potion', 'wand',
                           'knight', 'dragon', 'jester']
         self.players = []
         self.player_turn = 0
@@ -184,6 +185,14 @@ class Board:
             queen.selected = False
             queen.draw_card(self.screen, queen.center, self.queen_back_image, self.bg_colour)
 
+    def select_queens(self):
+        print('Selecting all queens')
+        for queen in self.queen_cards:
+            print(queen.center)
+            queen.draw_card(self.screen, queen.center, self.queen_back_image, self.bg_colour)
+            queen.select(self.screen)
+            #queen.selected = True
+
     def move_card_to_destination(self, source_picture, source_coords, target_coords):
         # create a new image at the source coords
         picture = pygame.image.load(source_picture)
@@ -284,6 +293,8 @@ class Board:
 
         if action_card.card_type.startswith('king'):
             print('Playing king')
+            self.select_queens()
+
         elif action_card.card_type == 'jester':
             print('jester')
         elif action_card.card_type == 'knight':
@@ -329,10 +340,10 @@ class Board:
                             self.perform_action()
                         print('Replacing cards')
                         self.replace_cards()
-                        
+
                         print('Ending turn: {}'.format(self.player_turn))
                         self.hide_player_cards()
-                        self.deselect_queens()
+                        #self.deselect_queens()
                         self.current_selection = []
                         self.player_turn += 1
                         self.player_turn %= len(self.player_names)
