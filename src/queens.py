@@ -264,7 +264,7 @@ class Board:
             all_numbers = True
             valid_numbers = set()
             for card in self.current_selection:
-                if self.card_is_number_card(card):
+                if not self.card_is_number_card(card):
                     all_numbers = False
                     break
 
