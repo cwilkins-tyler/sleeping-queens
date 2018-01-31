@@ -68,6 +68,7 @@ class Board:
                           'knight', 'dragon', 'jester']
         self.players = []
         self.player_turn = 0
+        self.turn_over = False
         self.cards_per_player = 5
         self.queen_cards = []
         self.playable_cards = []
@@ -188,10 +189,8 @@ class Board:
     def select_queens(self):
         print('Selecting all queens')
         for queen in self.queen_cards:
-            print(queen.center)
             queen.draw_card(self.screen, queen.center, self.queen_back_image, self.bg_colour)
             queen.select(self.screen)
-            #queen.selected = True
 
     def move_card_to_destination(self, source_picture, source_coords, target_coords):
         # create a new image at the source coords
@@ -292,8 +291,19 @@ class Board:
         action_card = self.current_selection[0]
 
         if action_card.card_type.startswith('king'):
-            print('Playing king')
             self.select_queens()
+            while True:
+                for event in pygame.event.get():
+                    if event.type == MOUSEBUTTONUP:
+                        for queen in self.queen_cards:
+                            if queen.is_clicked():
+                                print('Selected {}'.format(queen.card_type))
+
+                                # show the queen
+                                # wait 0.5s
+                                # move the queen to a holding area
+
+                                return
 
         elif action_card.card_type == 'jester':
             print('jester')
@@ -323,6 +333,15 @@ class Board:
         assert len(self.full_deck) == num_cards - len(self.current_selection)
         self.current_selection = []
 
+    def finalise_turn(self):
+        print('Ending turn: {}'.format(self.player_turn))
+        self.hide_player_cards()
+        self.deselect_queens()
+        self.current_selection = []
+        self.player_turn += 1
+        self.player_turn %= len(self.player_names)
+        self.turn_over = False
+
     def do_player_turn(self):
         self.center_stack = self.draw_center_card()
         self.show_player_cards()
@@ -341,19 +360,16 @@ class Board:
                         print('Replacing cards')
                         self.replace_cards()
 
-                        print('Ending turn: {}'.format(self.player_turn))
-                        self.hide_player_cards()
-                        #self.deselect_queens()
-                        self.current_selection = []
-                        self.player_turn += 1
-                        self.player_turn %= len(self.player_names)
+                        self.turn_over = True
                     else:
                         print('Not a valid move')
                         for card in self.current_selection:
                             print(card.card_type)
 
                 else:
-                    self.select_queen()
+                    if self.turn_over:
+                        self.finalise_turn()
+#                    self.select_queen()
 
         return 0
 
