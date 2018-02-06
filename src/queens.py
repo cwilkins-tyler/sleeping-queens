@@ -136,6 +136,9 @@ class Board:
 
         for player_index, player_name in enumerate(self.player_names):
             label = font.render(player_name, True, (200, 200, 200))
+            if player_index % 2 == 0:
+                rotation = (player_index + 1) * 90
+                label = pygame.transform.rotate(label, rotation)
             rect = label.get_rect()
             rect.center = self.player_positions[player_index]
             self.screen.blit(label, rect)
