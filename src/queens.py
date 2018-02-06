@@ -2,7 +2,7 @@ import os
 import re
 import time
 import pygame
-from random import shuffle
+from random import shuffle, choice
 from pygame.locals import QUIT, KEYDOWN, K_BACKSPACE, K_RETURN, MOUSEBUTTONUP
 
 
@@ -131,6 +131,13 @@ class Board:
         self.playable_card_positions = []
         self.player_queen_positions = []
         self.sleeping_queen_positions = []
+
+    def initialise_all(self):
+        self.initialise_players()
+        self.initialise_board()
+        self.initialise_card_positions()
+        self.deal_initial_cards()
+        self.initialise_queens()
 
     def initialise_players(self):
         for player_index, player_name in enumerate(self.player_names):
@@ -285,10 +292,11 @@ class Board:
 
     def move_card_to_destination(self, source_picture, source_coords, target_coords):
         # create a new image at the source coords
-        picture = pygame.image.load(source_picture)
-        picture = pygame.transform.scale(picture, (50, 70))
-
         temp_card = Card()
+
+        picture = pygame.image.load(source_picture)
+        picture = pygame.transform.scale(picture, (temp_card.width, temp_card.height))
+
         temp_card.draw_card(self.screen, source_coords, picture, self.bg_colour)
 
         # move it to the target
@@ -375,10 +383,25 @@ class Board:
         return False
 
     def check_for_dragon(self, player):
-        for card in player.cards:
-            if card.card_type == 'dragon':
-                print('Dragon found when stealing')
-                card.show_card(self.screen, card.card_file(self.resource_dir), self.bg_colour)
+        return self.check_for_card('dragon', player.cards)
+
+    def check_for_wand(self, player):
+        return self.check_for_card('wand', player.cards)
+
+    def check_for_card(self, card_type, player_cards):
+        target_cards = []
+        for card in player_cards:
+            if card.card_type == card_type:
+                target_cards.append(card)
+
+        random_card = None
+        if target_cards:
+            random_card = choice(target_cards)
+            random_card.show_card(self.screen, random_card.card_file(self.resource_dir), self.bg_colour)
+            pygame.display.flip()
+            time.sleep(2)
+
+        return random_card
 
     def wake_queen(self, current_player):
         self.select_queens()
@@ -432,20 +455,26 @@ class Board:
                         for player in self.players:
                             for queen in player.queens:
                                 if queen.is_clicked():
-                                    self.check_for_dragon(player)
-                                    queen_file = queen.card_file(self.resource_dir)
-                                    queen_destination = self.player_queen_positions[self.player_turn][len(current_player.queens)]
-                                    current_player.queens.append(queen)
-                                    player.queens.remove(queen)
-                                    old_pos = queen.center
-                                    queen.center = queen_destination
-                                    queen.moving = True
+                                    dragon_card = self.check_for_dragon(player)
+                                    if dragon_card:
+                                        self.move_card_to_destination(dragon_card.card_file(self.resource_dir),
+                                                                      dragon_card.center, self.screen_center)
+                                        self.replace_card(player, dragon_card)
+                                    else:
+                                        queen_file = queen.card_file(self.resource_dir)
+                                        queen_destination = self.player_queen_positions[self.player_turn][
+                                            len(current_player.queens)]
+                                        current_player.queens.append(queen)
+                                        player.queens.remove(queen)
+                                        old_pos = queen.center
+                                        queen.center = queen_destination
+                                        queen.moving = True
 
-                                    self.move_card_to_destination(queen_file, old_pos, queen_destination)
-                                    queen.moving = False
-                                    self.reorder_queens(player)
-                                    self.initialise_board()
-                                    pygame.display.flip()
+                                        self.move_card_to_destination(queen_file, old_pos, queen_destination)
+                                        queen.moving = False
+                                        self.reorder_queens(player)
+                                        self.initialise_board()
+                                        pygame.display.flip()
                                     return
 
         elif action_card.card_type == 'dragon':
@@ -460,20 +489,26 @@ class Board:
                         for player in self.players:
                             for queen in player.queens:
                                 if queen.is_clicked():
-                                    # show the queen then move it to the next open queen slot
-                                    queen_file = queen.card_file(self.resource_dir)
-                                    queen.queen_awake = False
-                                    queen_destination = self.sleeping_queen_positions[0]
-                                    player.queens.remove(queen)
+                                    wand_card = self.check_for_wand(player)
+                                    if wand_card:
+                                        self.move_card_to_destination(wand_card.card_file(self.resource_dir),
+                                                                      wand_card.center, self.screen_center)
+                                        self.replace_card(player, wand_card)
+                                    else:
+                                        # show the queen then move it to the next open queen slot
+                                        queen_file = queen.card_file(self.resource_dir)
+                                        queen.queen_awake = False
+                                        queen_destination = self.sleeping_queen_positions[0]
+                                        player.queens.remove(queen)
 
-                                    self.move_card_to_destination(queen_file, queen.center, queen_destination)
-                                    queen.center = queen_destination
+                                        self.move_card_to_destination(queen_file, queen.center, queen_destination)
+                                        queen.center = queen_destination
 
-                                    self.sleeping_queen_positions.remove(queen.center)
+                                        self.sleeping_queen_positions.remove(queen.center)
 
-                                    self.reorder_queens(player)
-                                    self.initialise_board()
-                                    pygame.display.flip()
+                                        self.reorder_queens(player)
+                                        self.initialise_board()
+                                        pygame.display.flip()
                                     return
         elif action_card.card_type == 'wand':
             # wands don't do anything on their own
@@ -560,10 +595,6 @@ class Board:
                         for card in self.current_selection:
                             print(card.card_type)
 
-                else:
-                    # self.select_queen()
-                    pass
-
             if self.turn_over:
                 self.finalise_turn()
 
@@ -629,11 +660,7 @@ def enter_players():
 
 def start_game(screen, player_list):
     board = Board(screen, player_list)
-    board.initialise_players()
-    board.initialise_board()
-    board.initialise_card_positions()
-    board.deal_initial_cards()
-    board.initialise_queens()
+    board.initialise_all()
 
     while True:
         for evt in pygame.event.get():
