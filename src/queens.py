@@ -60,6 +60,12 @@ class Card:
         card_rect = self.card_rect()
         return card_rect.collidepoint(pygame.mouse.get_pos())
 
+    def is_number_card(self):
+        if re.search('^\d+$', self.card_type):
+            return True
+        else:
+            return False
+
     def select(self, screen):
         self.draw_card(screen, self.center, self.image, self.highlight_colour)
         self.selected = True
@@ -82,6 +88,7 @@ class Board:
         self.screen = screen
         self.animations = False
         self.bg_colour = (100, 100, 100)
+        self.player_colour = (200, 200, 200)
         self.resource_dir = os.path.join('..', 'resources')
         self.player_names = players
         self.queens = ['heart', 'rose', 'peacock', 'ice-cream', 'dog', 'cat', 'strawberry', 'sunflower',
@@ -130,18 +137,26 @@ class Board:
             player = Player(player_name)
             self.players.append(player)
 
+    def draw_player_name(self, player_name, player_index, colour=None):
+        if not colour:
+            colour = self.player_colour
+
+        font = pygame.font.Font(None, 50)
+        label = font.render(player_name, True, colour)
+        if player_index % 2 == 0:
+            rotation = (player_index + 1) * 90
+            label = pygame.transform.rotate(label, rotation)
+        rect = label.get_rect()
+        rect.center = self.player_positions[player_index]
+        self.screen.blit(label, rect)
+
+    def draw_player_names(self):
+        for player_index, player_name in enumerate(self.player_names):
+            self.draw_player_name(player_name, player_index)
+
     def initialise_board(self):
         self.screen.fill(self.bg_colour)
-        font = pygame.font.Font(None, 50)
-
-        for player_index, player_name in enumerate(self.player_names):
-            label = font.render(player_name, True, (200, 200, 200))
-            if player_index % 2 == 0:
-                rotation = (player_index + 1) * 90
-                label = pygame.transform.rotate(label, rotation)
-            rect = label.get_rect()
-            rect.center = self.player_positions[player_index]
-            self.screen.blit(label, rect)
+        self.draw_player_names()
 
         for card_pos in self.playable_cards:
             player_card = Card()
@@ -254,7 +269,8 @@ class Board:
             for player in self.players:
                 if player != exclude_player:
                     for queen in player.queens:
-                        queen.select(self.screen)
+                        if queen.card_type != 'strawberry':
+                            queen.select(self.screen)
 
     def reorder_queens(self, source_player):
         player_index = self.players.index(source_player)
@@ -334,13 +350,6 @@ class Board:
         else:
             return False
 
-    @staticmethod
-    def card_is_number_card(card):
-        if re.search('^\d+$', card.card_type):
-            return True
-        else:
-            return False
-
     def valid_move(self):
         if len(self.current_selection) == 1:
             # any single card can be played
@@ -350,7 +359,7 @@ class Board:
             all_numbers = True
             valid_numbers = set()
             for card in self.current_selection:
-                if not self.card_is_number_card(card):
+                if not card.is_number_card():
                     all_numbers = False
                     break
 
@@ -360,10 +369,16 @@ class Board:
 
     def action_card_selected(self):
         for card in self.current_selection:
-            if not self.card_is_number_card(card):
+            if not card.is_number_card():
                 return True
 
         return False
+
+    def check_for_dragon(self, player):
+        for card in player.cards:
+            if card.card_type == 'dragon':
+                print('Dragon found when stealing')
+                card.show_card(self.screen, card.card_file(self.resource_dir), self.bg_colour)
 
     def wake_queen(self, current_player):
         self.select_queens()
@@ -373,8 +388,6 @@ class Board:
                 if event.type == MOUSEBUTTONUP:
                     for queen in self.queen_cards:
                         if queen.is_clicked():
-                            print('Selected {}'.format(queen.card_type))
-
                             # mark the queen location as available
                             self.sleeping_queen_positions.append(queen.center)
 
@@ -383,12 +396,11 @@ class Board:
                             queen.show_card(self.screen, queen_file, self.bg_colour)
                             queen.queen_awake = True
                             time.sleep(0.5)
-                            queen_destination = self.player_queen_positions[self.player_turn][
-                                len(current_player.queens)]
+                            player_index = self.players.index(current_player)
+                            queen_destination = self.player_queen_positions[player_index][len(current_player.queens)]
                             self.move_card_to_destination(queen_file, queen.center, queen_destination)
                             queen.center = queen_destination
                             current_player.queens.append(queen)
-
                             pygame.display.flip()
 
                             return queen
@@ -408,7 +420,9 @@ class Board:
                 self.wake_queen(current_player)
 
         elif action_card.card_type == 'jester':
-            print('jester')
+            # draw the next card and see if it is a number card
+            self.replace_card(current_player, action_card, jester_card=True)
+
         elif action_card.card_type == 'knight':
             self.select_queens(asleep=False, exclude_player=current_player)
             pygame.display.flip()
@@ -418,7 +432,7 @@ class Board:
                         for player in self.players:
                             for queen in player.queens:
                                 if queen.is_clicked():
-                                    print('knight is stealing {}'.format(queen.card_type))
+                                    self.check_for_dragon(player)
                                     queen_file = queen.card_file(self.resource_dir)
                                     queen_destination = self.player_queen_positions[self.player_turn][len(current_player.queens)]
                                     current_player.queens.append(queen)
@@ -446,8 +460,6 @@ class Board:
                         for player in self.players:
                             for queen in player.queens:
                                 if queen.is_clicked():
-                                    print('potion is sleeping {}'.format(queen.card_type))
-
                                     # show the queen then move it to the next open queen slot
                                     queen_file = queen.card_file(self.resource_dir)
                                     queen.queen_awake = False
@@ -463,10 +475,39 @@ class Board:
                                     self.initialise_board()
                                     pygame.display.flip()
                                     return
-
         elif action_card.card_type == 'wand':
             # wands don't do anything on their own
             pass
+
+    def replace_card(self, current_player, old_card, jester_card=False):
+        target_card = Card()
+        target_card.card_type = self.full_deck[-1]
+        target_card.center = self.screen_center
+
+        if jester_card:
+            red = (222, 0, 0)
+            # check whether the next card is a number card
+            if target_card.is_number_card():
+                target_card.show_card(self.screen, target_card.card_file(self.resource_dir), self.bg_colour)
+                pygame.display.flip()
+                current_player_index = self.players.index(current_player)
+                for i in range(current_player_index, current_player_index + int(target_card.card_type)):
+                    previous_player = self.players[(i - 1) % len(self.players)]
+                    chosen_player = self.players[i % len(self.players)]
+                    self.draw_player_name(previous_player.name, self.players.index(previous_player))
+                    self.draw_player_name(chosen_player.name, self.players.index(chosen_player), colour=red)
+                    time.sleep(1)
+                    pygame.display.flip()
+
+                # the chosen player gets to choose a queen
+                self.wake_queen(chosen_player)
+        else:
+            print('Replacing {} with {}'.format(old_card.card_type, target_card.card_type))
+            self.full_deck.pop()
+            self.discard_pile.append(old_card.card_type)
+            target_card.center = old_card.center
+            current_player.cards.remove(old_card)
+            current_player.cards.append(target_card)
 
     def replace_cards(self):
         current_player = self.players[self.player_turn]
@@ -479,21 +520,13 @@ class Board:
 
         for i in range(len(self.current_selection)):
             old_card = self.current_selection[i]
-            target_card = Card()
-            target_card.card_type = self.full_deck[-1]
-            print('Replacing {} with {}'.format(old_card.card_type, target_card.card_type))
-            self.full_deck.pop()
-            self.discard_pile.append(old_card.card_type)
-            target_card.center = old_card.center
-            current_player.cards.remove(old_card)
-            current_player.cards.append(target_card)
+            self.replace_card(current_player, old_card)
 
         assert len(current_player.cards) == self.cards_per_player, len(current_player.cards)
         assert len(self.full_deck) == num_cards - len(self.current_selection)
         self.current_selection = []
 
     def finalise_turn(self):
-        print('Ending turn: {}'.format(self.player_turn))
         self.hide_player_cards()
         self.deselect_queens()
         self.current_selection = []
@@ -510,17 +543,15 @@ class Board:
         self.show_player_cards()
         for event in pygame.event.get():
             if event.type == QUIT:
-                print('Exiting')
                 self.hide_player_cards()
                 return 1
             elif event.type == MOUSEBUTTONUP:
                 if self.select_player_card():
-                    print('Player Card selected')
+                    pass
                 elif self.is_center_card_selected():
                     if self.valid_move():
                         if self.action_card_selected():
                             self.perform_action()
-                        print('Replacing cards')
                         self.replace_cards()
 
                         self.turn_over = True
