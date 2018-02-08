@@ -435,7 +435,7 @@ class Board:
         if action_card.card_type.startswith('king'):
             chosen_queen = self.wake_queen(current_player)
 
-            if chosen_queen.card_type == 'rose':
+            if chosen_queen.card_type == 'rose' and len(current_player.queens) < 5:
                 self.initialise_board()
                 self.draw_center_card()
                 self.show_player_cards()
@@ -605,11 +605,20 @@ def enter_players():
     pygame.init()
     pygame.display.set_caption("Sleeping Queens")
     screen = pygame.display.set_mode((800, 800))
+    black = (0, 0, 0)
+    white = (255, 255, 255)
+    grey = (200, 200, 200)
+    screen.fill(black)
+    screen_center = screen.get_rect().center
     player_name = ""
     max_players = 4
     current_player = 1
     players = []
     font = pygame.font.Font(None, 50)
+    block = font.render('Choose your players', True, grey)
+    rect = block.get_rect()
+    rect.center = (screen_center[0], screen_center[1] - (screen.get_height() / 3))
+    screen.blit(block, rect)
     select_players = True
     while select_players:
         for evt in pygame.event.get():
@@ -632,17 +641,15 @@ def enter_players():
                         select_players = False
             elif evt.type == QUIT:
                 return
-        screen.fill((0, 0, 0))
-        screen_center = screen.get_rect().center
         for i in range(max_players):
             if len(players) > i:
-                block = font.render(players[i], True, (255, 255, 255))
+                block = font.render(players[i], True, white)
                 rect = block.get_rect()
                 rect.center = (screen_center[0] + (rect.width / 2) - 20, ((i - 1) * 50) + screen_center[1])
                 screen.blit(block, rect)
             else:
-                block = font.render(player_name, True, (255, 255, 255))
-            label = font.render('Player{}:'.format(i), True, (200, 200, 200))
+                block = font.render(player_name, True, white)
+            label = font.render('Player{}:'.format(i), True, grey)
             label_rect = label.get_rect()
             label_rect.center = (100, screen_center[1] + ((i - 1) * 50))
             screen.blit(label, label_rect)
