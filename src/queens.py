@@ -5,6 +5,9 @@ import pygame
 from random import shuffle, choice
 from pygame.locals import QUIT, KEYDOWN, K_BACKSPACE, K_RETURN, MOUSEBUTTONUP
 
+SCREEN_WIDTH = 1200
+SCREEN_HEIGHT = 1200
+
 
 class Card:
     def __init__(self):
@@ -13,8 +16,8 @@ class Card:
         self.y = None
         self.card_type = None
         self.image = None
-        self.width = 50
-        self.height = 70
+        self.width = int(SCREEN_WIDTH / 16)
+        self.height = int(SCREEN_HEIGHT / 11)
         self.highlight_colour = (22, 106, 22)
         self.selected = False
         self.is_queen = False
@@ -41,7 +44,7 @@ class Card:
 
     def show_card(self, screen, image_file, bg_colour):
         loaded_image = pygame.image.load(image_file)
-        loaded_image = pygame.transform.scale(loaded_image, (50, 70))
+        loaded_image = pygame.transform.scale(loaded_image, (self.width, self.height))
         self.draw_card(screen, self.center, loaded_image, bg_colour)
         self.image = loaded_image
         self.selected = True
@@ -113,20 +116,24 @@ class Board:
         self.card_back = os.path.join(self.resource_dir, 'card-back.jpg')
         self.queen_back = os.path.join(self.resource_dir, 'queen-back.jpg')
         self.queen_back_image = pygame.image.load(self.queen_back)
-        self.queen_back_image = pygame.transform.scale(self.queen_back_image, (50, 70))
+        temp_card = Card()
+        self.queen_back_image = pygame.transform.scale(self.queen_back_image, (temp_card.width, temp_card.height))
         self.card_back_image = pygame.image.load(self.card_back)
-        self.card_back_image = pygame.transform.scale(self.card_back_image, (50, 70))
+        self.card_back_image = pygame.transform.scale(self.card_back_image, (temp_card.width, temp_card.height))
         self.center_stack = None
         screen_border = 30
-        card_border = 75
+        self.card_border = temp_card.height + 5
         self.screen_center = screen.get_rect().center
         screen_width = screen.get_width()
         screen_height = screen.get_height()
         self.player_positions = [(screen_border, self.screen_center[1]), (self.screen_center[0], screen_border),
                                  (screen_width - screen_border, self.screen_center[1]),
                                  (self.screen_center[0], screen_height - screen_border)]
-        self.playable_card_offsets = [(card_border, -150), (card_border, -75), (card_border, 0), (card_border, 75),
-                                      (card_border, 150)]
+        self.playable_card_offsets = [(self.card_border, -2 * self.card_border),
+                                      (self.card_border, -1 * self.card_border),
+                                      (self.card_border, 0),
+                                      (self.card_border, self.card_border),
+                                      (self.card_border, self.card_border * 2)]
         # playable card positions is a list of x,y coords which contain playable cards for the given players
         # player queen positions is a list of x,y coords where the woken queens will be placed
         self.playable_card_positions = []
@@ -185,7 +192,7 @@ class Board:
         self.intialise_player_queens()
 
     def initialise_card_positions(self):
-        queen_offset = 75
+        queen_offset = self.card_border
         for i in range(len(self.playable_card_offsets)):
             for player_index, player_name in enumerate(self.player_names):
                 starting_position = self.player_positions[player_index]
@@ -253,10 +260,11 @@ class Board:
         for queen_row in range(4):
             for queen_col in range(2):
                 for queen_side in [-1, 1]:
-                    queen_centre_y = self.screen_center[1] + (queen_row - 1.5) * queen_vert_gap
-                    queen_centre_x = self.screen_center[0] + ((queen_col + 1) * queen_horiz_gap) * queen_side
-
                     queen_card = Card()
+
+                    queen_centre_y = self.screen_center[1] + (queen_row - 1.5) * queen_vert_gap
+                    queen_centre_x = self.screen_center[0] + ((queen_col + 1) * queen_card.height) * queen_side
+
                     queen_card.draw_card(self.screen, (queen_centre_x, queen_centre_y), self.queen_back_image,
                                          self.bg_colour)
                     queen_card.card_type = self.queens[queen_index]
@@ -647,7 +655,7 @@ class Board:
 def enter_players():
     pygame.init()
     pygame.display.set_caption("Sleeping Queens")
-    screen = pygame.display.set_mode((800, 800))
+    screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
     black = (0, 0, 0)
     white = (255, 255, 255)
     grey = (200, 200, 200)
